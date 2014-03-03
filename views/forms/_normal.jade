@@ -1,0 +1,20 @@
+mixin form_normal(form)
+    - var allRequired = true
+    - for(var k in form.fields)
+        - if(!form.fields[k].required)
+            - allRequired = false
+
+    .normalform
+        each field in form.fields
+            .row
+                label(for=field.name)
+                    != field.labelText()
+                    if field.required && !allRequired
+                        | *
+                .io
+                    != field.widget.toHTML(field.name, field)
+                    .error
+                        = field.error
+        if !allRequired
+            .helptext.
+                Fields marked with * are required.

@@ -1,0 +1,33 @@
+//- -> reg_form, messages
+include forms/_normal
+include _messages
+
+doctype html
+title Some Ghetto Chat Room
+link(rel='stylesheet' href='style.css')
+
++messages(messages)
+
+h1.
+    Some Ghetto Chat Room
+
+p.
+    Welcome to the best chat room ever. This chat room is so good that it will blow your mind so hard that you will
+    in all likelyhood develop chronic vertigo so that some doctor gets to profit from your misery. Some parts of it are
+    still under development and will eventually result in your mind being blown even harder. Or longer. Or both. You
+    HAVE to use this chat room. Just think of the doctors!
+
+fieldset
+    legend
+        h2 New User? Sign up now - it's free!
+    p.quiet.
+        What could be better than free?!
+    form(method='POST')
+        +form_normal(reg_form)
+
+        input(type='submit' value='Sign Up!')
+        span(style='margin-left: 1em;')
+            | Already a member?&nbsp;
+            a(href='/login') Log in
+
+//- pre(style='font-size:.75em;')!= JSON.stringify(reg_form, null, 4).split('\n').join('<br>')

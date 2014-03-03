@@ -1,0 +1,107 @@
+body {
+    font-family: verdana, sans-serif;
+    background-color: #fafafa;
+    font-size: .8em;
+}
+
+.chatbox {
+    height: 10em;
+    border: 3px inset #3b7d96;
+    background-color: #eeeeee;
+    padding: .2em;
+}
+.chatentry {
+    display: table-row;
+    padding-top: .5em;
+    height: 1.8em;
+}
+.chatmessage {
+    display: table-cell;
+    padding-left: .5em;
+}
+.chatname {
+    /*display: table-cell; */
+    padding-right: .5em;
+    border-right: 2px solid black;
+}
+.chatinput {
+    width: 100%;
+    border: 3px inset #3b7d96;
+
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+.nameinput {
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+.normalform {
+    margin-bottom: .75em;
+}
+.normalform label {
+    display: table-cell;
+    padding-right: .5em;
+    font-size: .9em;
+}
+.normalform input {
+    display: table-cell;
+    border: 2px inset #3b7d96;
+    width: 20em;
+    background-color: #fafafa;
+
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+}
+.normalform .row {
+    display: table-row;
+}
+.normalform .io {
+    /* contains input and the error message */
+    display: table-cell;
+    padding-bottom: .75em;
+}
+.normalform .error {
+    color: #ea0806;
+    font-weight: bold;
+}
+.normalform .helptext {
+    font-size: .7em;
+    color: #686868;
+}
+
+.message {
+    padding: .5em;
+    border-radius: .25em;
+    font-size: .9em;
+    margin-bottom: .5em;
+}
+.message.info {
+    background-color: #969696;
+}
+.message.warning {
+    background-color: #bd9632;
+}
+.message.error {
+    background-color: #ef736e;
+}
+
+h2,h3,h4,h5,h6 {
+    color: #3a3a3a;
+}
+
+h1 {
+    text-align: center;
+    background-color: #fefefe;
+    padding-top: .5em;
+    padding-bottom: .5em;
+}
+
+.quiet {
+    font-size: .7em;
+    color: #686868;
+}

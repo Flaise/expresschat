@@ -1,0 +1,14 @@
+mixin messages(arg)
+    div
+        if arg.error
+            each message in arg.error
+                .message.error
+                    = message
+        if arg.warning
+            each message in arg.warning
+                .message.warning
+                    = message
+        if arg.info
+            each message in arg.info
+                .message.info
+                    = message

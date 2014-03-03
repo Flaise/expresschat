@@ -1,0 +1,22 @@
+//- -> log_form, messages
+include forms/_normal
+include _messages
+
+doctype html
+title Some Ghetto Chat Room
+link(rel='stylesheet' href='style.css')
+
++messages(messages)
+
+h1.
+    The Log-In Form is Here
+
+fieldset
+    legend
+        h2 Log In OMg..
+    form(method='POST')
+        +form_normal(log_form)
+        input(type='submit' value='Sign In!')
+        span(style='margin-left: 1em;')
+            | Don't have an account yet?&nbsp;
+            a(href='/') Sign up nao
