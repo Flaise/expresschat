@@ -15,6 +15,7 @@ var MongoStore = require('connect-mongo')(express)
 //var passport = require('passport')
 var shoe = require('shoe')
 var dnode = require('dnode')
+var minifyify = require('minifyify')
 
 
 var settings = require('./default_settings.js')
@@ -46,6 +47,20 @@ function routeErrHandler(target) {
             catch(err) {
                 render500(err, res)
             }
+        })
+    }
+}
+
+function showStackTrace(target) {
+    return function() {
+        var d = domain.create()
+        d.on('error', function(err) {
+            console.error(err.stack)
+        })
+
+        var args = arguments
+        d.run(function() {
+            target.apply(null, args)
         })
     }
 }
@@ -86,10 +101,15 @@ var validator_matchField = function (match_field, message) {
     }
 }
 
+var validator_alphanumeric = function(message) {
+    return validators.regexp(/^[a-zA-Z0-9]*$/, message || 'Letters and numbers only.');
+}
+
 var reg_form = forms.create({
     username: fields.string({
         label: 'Username',
-        required: true
+        required: true,
+        validators: [validator_alphanumeric()]
     }),
     password: fields.password({
         label: 'Password',
@@ -207,7 +227,7 @@ function redirectIfLoggedIn(dest) {
         if(req.session.account)
             res.redirect(dest)
         else
-            return next()
+            next()
     }
 }
 
@@ -258,22 +278,12 @@ app.post('/', routeErrHandler(function(req, res) {
             // there is a request and the form is valid
             // form.data contains the submitted data
 
-            /*callAndErrHandle(res, function() {
-                UserAccount.find({}, function(err, accounts) {
-                    if(err)
-                        render500(err, res)
-                    else
-                        console.log(accounts)
-                })
-            })*/
-
             callAndErrHandle(res, function() {
                 UserAccount.find({ name: form.data.username }, function(err, accounts) {
                     if(err)
                         render500(err, res)
                     else if(accounts.length) {
                         form.fields.username.error = 'That name is already taken.'
-                        //req.flash('error', 'That name is already taken.')
                         res.render('index.jade', {reg_form:form, messages:extractMessages(req)})
                     }
                     else {
@@ -309,59 +319,50 @@ app.post('/', routeErrHandler(function(req, res) {
 app.get('/chat', loginRequired, routeErrHandler(function(req, res) {
     res.render('chat.jade', {account:req.session.account, messages:extractMessages(req)})
 }))
-app.get('/throws', routeErrHandler(function(req, res) { // just for testing the 500 handler
-    throw new Error('wat')
-}))
-app.get('/throws-async', routeErrHandler(function(req, res) {
-    setTimeout(function() {
-        throw new Error('ohai')
-    }, 500)
-}))
-app.get('/throws-async-nested', routeErrHandler(function(req, res) {
-    setTimeout(function() {
-        setTimeout(function() {
-            throw new Error('ohai')
-        }, 500)
-    }, 500)
-}))
 
 /* *** browserify and entry points *** */
-var b = browserify()
-b.add('./browserjs/uses_foo.js')
-b.bundle({debug: settings.debug}).pipe(
-    fs.createWriteStream('./static/bundle.js')
-        .on('error', function(error) {
-            console.error('Unable to bundle JS')
-            console.error(error.stack)
-        })
-        .on('close', function() {
+browserify()
+    .add('./browserjs/uses_foo.js')
+    .bundle({debug: settings.debug})
 
-            // application starts
+    .pipe(minifyify(function(err, src, map) {
+        if(err) {
+            console.error(err)
+            return
+        }
+        fs.writeFileSync('./static/bundle.js', src)
+        fs.writeFileSync('./static/bundle.map.json', map)
 
-            var something = app.listen(settings.port)
+        // application starts
 
-            var sock = shoe(function (stream) {
-                var cbOnChat
+        var something = app.listen(settings.port)
 
-                var d = dnode({
-                    onChat: function(cb) {
-                        cbOnChat = cb
-                        cb('system', 'you Are logged in')
-                    },
-                    say: function(message) {
-                        if(cbOnChat)
-                            cbOnChat('???', message)
+        var sock = shoe(function(stream) {
+            var connection
+
+            var d = dnode({
+                connect: showStackTrace(function(_onSysMsg, _onChat) {
+                    connection = {
+                        onChat: _onChat,
+                        onSysMsg: _onSysMsg
                     }
-                })//, {weak:false})
-                d.pipe(stream).pipe(d)
+                    connection.onSysMsg('you Are logged in')
+                }),
+                say: showStackTrace(function(message) {
+                    if(!connection) {
+                        console.error('Tried to use say() without connect()')
+                        stream.close()
+                        return
+                    }
+                    connection.onChat('???', message)
+                })
+            })//, {weak:false})
+            d.on('error', function(err) {
+                console.error(err.stack)
             })
-            //sock.install(app, '/dnode')
-            sock.install(something, '/dnode')
-
-            console.log('Started.')
+            d.pipe(stream).pipe(d)
         })
-)
+        sock.install(something, '/dnode')
 
-
-
-//})
+        console.log('Started.')
+    }))

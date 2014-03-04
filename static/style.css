@@ -24,6 +24,9 @@ body {
     padding-right: .5em;
     border-right: 2px solid black;
 }
+.chatname.system {
+    font-style:italic;
+}
 .chatinput {
     width: 100%;
     border: 3px inset #3b7d96;

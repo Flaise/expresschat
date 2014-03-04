@@ -6,13 +6,12 @@ exports = module.exports = function(r) {
 var $ = require('jquery')
 var shoe = require('shoe')
 var dnode = require('dnode')
-var stream = shoe('/dnode')
 
 $(function() {
     "use strict";
 
     var d = dnode()
-    d.on('remote', function (remote) {
+    d.on('remote', function(remote) {
         $('.chatinput')
             .bind("enter", function(e) {
                 var $input = $('.chatinput')
@@ -25,15 +24,32 @@ $(function() {
                 }
             })
 
-        remote.onChat(function(name, message) {
-            //$('.chatbox').html(name + '| ' + message)
-            $('.chatbox').append(
-                '<div class="chatentry">'
-                    + '<div class="chatname">' + name + '</div>'
-                    + '<div class="chatmessage">' + message + '</div>'
-                + '</div>'
-            )
-        })
+        remote.connect(
+            function(message) {
+                $('.chatbox').append(
+                    '<div class="chatentry">'
+                        + '<div class="chatname system">system</div>'
+                        + '<div class="chatmessage">' + message + '</div>'
+                    + '</div>'
+                )
+            },
+            function(name, message) {
+                $('.chatbox').append(
+                    '<div class="chatentry">'
+                        + '<div class="chatname">' + name + '</div>'
+                        + '<div class="chatmessage">' + message + '</div>'
+                    + '</div>'
+                )
+            }
+        )
     })
+    d.on('error', function(err) {
+        console.error(err.stack)
+    })
+    d.on('close', function() {
+        console.log(close)
+    })
+
+    var stream = shoe('/dnode')
     d.pipe(stream).pipe(d)
 })
