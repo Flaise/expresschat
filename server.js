@@ -13,6 +13,9 @@ var domain = require('domain')
 var flash = require('connect-flash')
 var MongoStore = require('connect-mongo')(express)
 //var passport = require('passport')
+var shoe = require('shoe')
+var dnode = require('dnode')
+
 
 var settings = require('./default_settings.js')
 
@@ -164,16 +167,16 @@ app.use(flash())
     }
 ));*/
 
-//app.use(routeErrHandler(function logger(req, res, next) {
-//    console.log('%s %s %s', req.method, req.url, req.ip)
-//    next()
-//}))
+app.use(routeErrHandler(function logger(req, res, next) {
+    console.log('%s %s %s', req.method, req.url, req.ip)
+    next()
+}))
 app.use(app.router) // Must be after session management
 app.use(express.static(__dirname + '/static'))
-//app.use(routeErrHandler(function errorHandler(err, req, res, next) {
-//    res.status(500)
-//    res.render('500.jade', {error: err, showStack: settings.debug})
-//}))
+app.use(routeErrHandler(function errorHandler(err, req, res, next) {
+    res.status(500)
+    res.render('500.jade', {error: err, showStack: settings.debug})
+}))
 app.use(routeErrHandler(function(req, res, next) {
     res.status(404)
     res.render('404.jade', {})
@@ -199,6 +202,15 @@ function loginRequired(req, res, next) {
     res.redirect('/login')
 }
 
+function redirectIfLoggedIn(dest) {
+    return function(req, res, next) {
+        if(req.session.account)
+            res.redirect(dest)
+        else
+            return next()
+    }
+}
+
 
 /* *** Routes *** */
 app.post('/logout', routeErrHandler(function(req, res) {
@@ -206,7 +218,7 @@ app.post('/logout', routeErrHandler(function(req, res) {
     req.flash('info', 'Logged out!1')
     res.redirect('/login')
 }))
-app.get('/login', routeErrHandler(function(req, res) {
+app.get('/login', redirectIfLoggedIn('/chat'), routeErrHandler(function(req, res) {
     res.render('login.jade', {log_form:log_form, messages:extractMessages(req)})
 }))
 app.post('/login', routeErrHandler(function(req, res) {
@@ -237,7 +249,7 @@ app.post('/login', routeErrHandler(function(req, res) {
         }
     })
 }))
-app.get('/', routeErrHandler(function(req, res) {
+app.get('/', redirectIfLoggedIn('/chat'), routeErrHandler(function(req, res) {
     res.render('index.jade', {reg_form:reg_form, messages:extractMessages(req)})
 }))
 app.post('/', routeErrHandler(function(req, res) {
@@ -325,11 +337,30 @@ b.bundle({debug: settings.debug}).pipe(
         .on('close', function() {
 
             // application starts
-            app.listen(settings.port)
+
+            var something = app.listen(settings.port)
+
+            var sock = shoe(function (stream) {
+                var cbOnChat
+
+                var d = dnode({
+                    onChat: function(cb) {
+                        cbOnChat = cb
+                        cb('system', 'you Are logged in')
+                    },
+                    say: function(message) {
+                        if(cbOnChat)
+                            cbOnChat('???', message)
+                    }
+                })//, {weak:false})
+                d.pipe(stream).pipe(d)
+            })
+            //sock.install(app, '/dnode')
+            sock.install(something, '/dnode')
+
             console.log('Started.')
         })
 )
-
 
 
 

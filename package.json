@@ -11,7 +11,10 @@
         "password-hash": "1.2.1",
         "connect-flash": "0.1.1",
         "passport": "0.2.0",
-        "connect-mongo": "0.4.0"
+        "connect-mongo": "0.4.0",
+        "shoe": "0.0.15",
+        "dnode": "1.2.0",
+        "jquery": "2.1.0"
     },
     "private": true
 }

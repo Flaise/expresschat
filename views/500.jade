@@ -4,7 +4,9 @@ doctype html
 title= 500
 h1 500: Internal Server Error
 if showStack
-	pre
-		each val in error.stack.split('\n')
-			= val
-			br
+    if error.stack
+        each val in error.stack.split('\n')
+            = val
+            br
+    else
+        = error
