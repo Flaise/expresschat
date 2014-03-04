@@ -11,6 +11,7 @@ var mongoose = require('mongoose')
 var passwordHash = require('password-hash')
 var domain = require('domain')
 var flash = require('connect-flash')
+var MongoStore = require('connect-mongo')(express)
 //var passport = require('passport')
 
 var settings = require('./default_settings.js')
@@ -19,14 +20,13 @@ var settings = require('./default_settings.js')
 /* *** Uncaught Exception Handling *** */
 function render500(err, res) {
     try {
-        console.log(err.stack)
+        console.error(err.stack)
         res.status(500)
         res.render('500.jade', {error: err, showStack: settings.debug})
-        console.log('Rendered 500 page for exception: ' + err.message)
     }
     catch(fail) {
-        console.log('Unable to render 500 page.')
-        console.log(fail.stack)
+        console.error('Unable to render 500 page.')
+        console.error(fail.stack)
     }
 }
 
@@ -74,14 +74,14 @@ var validator_matchField = function (match_field, message) {
     return function (form, field, callback) {
         if (form.fields[match_field].data !== field.data) {
             if(message.lastIndexOf('%') >= 0)
-                callback(util.format(message, match_field));
+                callback(util.format(message, match_field))
             else
                 callback(message)
         } else {
-            callback();
+            callback()
         }
-    };
-};
+    }
+}
 
 var reg_form = forms.create({
     username: fields.string({
@@ -115,36 +115,6 @@ var log_form = forms.create({
 
 
 /* *** Schemata *** */
-
-/*var kittySchema = mongoose.Schema({
-    name: String
-})
-// NOTE: methods must be added to the schema before compiling it with mongoose.model()
-kittySchema.methods.speak = function () {
-    var greeting = this.name
-        ? "Meow name is " + this.name
-        : "I don't have a name"
-    console.log(greeting)
-}
-var Kitten = mongoose.model('Kitten', kittySchema)
-
-var silence = new Kitten({ name: 'Silence' })
-console.log(silence.name) // 'Silence'
-
-var fluffy = new Kitten({ name: 'fluffy' })
-fluffy.speak() // "Meow name is fluffy"
-
-fluffy.save(function(err, fluffy) {
-    if (err) return console.error(err)
-    fluffy.speak()
-    console.log('qqqqq')
-
-    Kitten.find(function (err, kittens) {
-        if (err) return console.error(err)
-        console.log(kittens)
-    })
-})*/
-
 var userAccountSchema = mongoose.Schema({
     name: String,
     hashedPassword: String,
@@ -163,8 +133,25 @@ var UserAccount = mongoose.model('UserAccount', userAccountSchema)
 
 
 /* *** Middleware *** */
+
 app.use(express.cookieParser(settings.cookie_key))
-app.use(express.session({secret: settings.session_key, cookie: { maxAge: 60000 }}))
+app.use(express.session({
+    secret: settings.session_key,
+    store: new MongoStore({
+        db: settings.database_name,
+        url: settings.database_path
+    })
+}))
+
+mongoose.connect(settings.database_path)
+var db = mongoose.connection
+db.on('error', function(err) {
+    console.error(err.message)
+    console.error(err.stack)
+})
+//db.once('open', function() {
+
+
 //app.use(passport.initialize())
 //app.use(passport.session())
 app.use(flash())
@@ -177,11 +164,11 @@ app.use(flash())
     }
 ));*/
 
-app.use(routeErrHandler(function logger(req, res, next){
-    console.log('%s %s %s', req.method, req.url, req.ip)
-    next()
-}))
-app.use(app.router)
+//app.use(routeErrHandler(function logger(req, res, next) {
+//    console.log('%s %s %s', req.method, req.url, req.ip)
+//    next()
+//}))
+app.use(app.router) // Must be after session management
 app.use(express.static(__dirname + '/static'))
 //app.use(routeErrHandler(function errorHandler(err, req, res, next) {
 //    res.status(500)
@@ -200,6 +187,8 @@ function extractMessages(req) {
         info: req.flash('info')
     }
 }
+
+/* *** Decorators *** */
 function loginRequired(req, res, next) {
     //if (req.isAuthenticated())
     //    return next()
@@ -207,10 +196,16 @@ function loginRequired(req, res, next) {
         return next()
 
     req.flash('error', 'You must log in to access that page.')
-    res.redirect('/')
+    res.redirect('/login')
 }
 
+
 /* *** Routes *** */
+app.post('/logout', routeErrHandler(function(req, res) {
+    req.session.account = null
+    req.flash('info', 'Logged out!1')
+    res.redirect('/login')
+}))
 app.get('/login', routeErrHandler(function(req, res) {
     res.render('login.jade', {log_form:log_form, messages:extractMessages(req)})
 }))
@@ -289,7 +284,7 @@ app.post('/', routeErrHandler(function(req, res) {
 
         },
         error: function(form) {
-            // the data in the request didn't validate,
+            // the data in the request didn't validate;
             // calling form.toHTML() again will render the error messages
             res.render('index.jade', {reg_form:form, messages:extractMessages(req)})
         },
@@ -300,7 +295,7 @@ app.post('/', routeErrHandler(function(req, res) {
     })
 }))
 app.get('/chat', loginRequired, routeErrHandler(function(req, res) {
-    res.render('chat.jade', {messages:extractMessages(req)})
+    res.render('chat.jade', {account:req.session.account, messages:extractMessages(req)})
 }))
 app.get('/throws', routeErrHandler(function(req, res) { // just for testing the 500 handler
     throw new Error('wat')
@@ -324,19 +319,18 @@ b.add('./browserjs/uses_foo.js')
 b.bundle({debug: settings.debug}).pipe(
     fs.createWriteStream('./static/bundle.js')
         .on('error', function(error) {
-            console.log('Unable to bundle JS')
-            console.log(error.stack)
+            console.error('Unable to bundle JS')
+            console.error(error.stack)
         })
         .on('close', function() {
-            mongoose.connect(settings.database_path)
-            var db = mongoose.connection;
-            db.on('error', console.error.bind(console, 'connection error:'));
-            db.once('open', function() {
-                console.log('Connected to database at ' + settings.database_path)
 
-                // application starts
-                app.listen(settings.port)
-                console.log('Listening on port ' + settings.port)
-            })
+            // application starts
+            app.listen(settings.port)
+            console.log('Started.')
         })
 )
+
+
+
+
+//})

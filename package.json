@@ -10,7 +10,8 @@
         "mongoose": "3.8.8",
         "password-hash": "1.2.1",
         "connect-flash": "0.1.1",
-        "passport": "0.2.0"
+        "passport": "0.2.0",
+        "connect-mongo": "0.4.0"
     },
     "private": true
 }

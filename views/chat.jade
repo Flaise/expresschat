@@ -1,10 +1,18 @@
-//- -> messages
+//- -> account, messages
 doctype html
 title Chat Room
 link(rel='stylesheet' href='style.css')
 script(src='bundle.js')
 
 include _messages
+
+div
+    = (((Math.random() < .5? 'You': 'Yoo'))) + ' seem to be logged in as a(n) '
+    strong
+        = account.name
+    |.
+    form(action='/logout' method='POST')
+        input(type='submit' value='Log out')
 
 .chatbox
     .chatentry
@@ -17,4 +25,4 @@ include _messages
             br
             br
             | Quo hendrerit gloriatur ad, mei ut sint case similique. Sed no omnis minimum laboramus, quo verear albucius te. Mea ne animal suscipit pertinax, quod cibo saperet ius et. Habemus phaedrum cu has, ex postea numquam tractatos quo, no eam modus atqui meliore. Quando munere accusamus nam id, per option ponderum postulant ex, eu oblique volumus vis.
-input.chatinput(type='text')
+input.chatinput(type='text' placeholder='Click here and type stuff and press enter to send so you can send stuff')
