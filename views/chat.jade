@@ -1,8 +1,7 @@
-//- -> account, messages
+//- -> account, messages, token
 doctype html
 title Chat Room
 link(rel='stylesheet' href='style.css')
-script(src='bundle.js')
 
 include _messages
 
@@ -14,9 +13,15 @@ div
     form(action='/logout' method='POST')
         input(type='submit' value='Log out')
 
+
 .chatbox
     .chatentry
         .chatname
         .chatmessage
             | Using your javascripts to log you in. Please wait while you are logged in.
 input.chatinput(type='text' placeholder='Click here and type stuff and press enter to send so you can send stuff')
+
+script
+    != 'var g_name="' + account.name + '";'
+    != 'var g_token="' + token + '"'
+script(src='bundle.js')

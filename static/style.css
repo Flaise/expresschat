@@ -23,9 +23,11 @@ body {
     /*display: table-cell; */
     padding-right: .5em;
     border-right: 2px solid black;
+    font-weight:bold;
 }
 .chatname.system {
     font-style:italic;
+    font-weight:normal;
 }
 .chatinput {
     width: 100%;

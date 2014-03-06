@@ -1,7 +1,6 @@
 "use strict";
 
 var express = require('express')
-var app = express()
 var browserify = require('browserify')
 var fs = require('fs')
 var forms = require('forms')
@@ -16,10 +15,11 @@ var MongoStore = require('connect-mongo')(express)
 var shoe = require('shoe')
 var dnode = require('dnode')
 var minifyify = require('minifyify')
+var crypto = require('crypto')
 
 
 var settings = require('./default_settings.js')
-
+var app = express()
 
 /* *** Uncaught Exception Handling *** */
 function render500(err, res) {
@@ -142,7 +142,8 @@ var userAccountSchema = mongoose.Schema({
     name: String,
     hashedPassword: String,
     email: String,
-    joinDate: { type: Date, default: Date.now }
+    joinDate: { type: Date, default: Date.now },
+    hashedAuthToken: String
 })
 userAccountSchema.methods.isPassword = function(password) {
     return passwordHash.verify(password, this.hashedPassword)
@@ -150,6 +151,33 @@ userAccountSchema.methods.isPassword = function(password) {
 userAccountSchema.methods.setPassword = function(cleartext) {
     this.hashedPassword = passwordHash.generate(cleartext)
 }
+userAccountSchema.methods.isAuthToken = function(token) {
+    return passwordHash.verify(token, this.hashedAuthToken)
+}
+userAccountSchema.methods.genAuthToken = function(cb) {
+    var this_ = this
+    crypto.randomBytes(256, function(err, buf) {
+        try {
+            var token
+            if(err) {
+                console.warn(err.stack)
+                // If the entropy buffer isn't full, just generate some data anyway.
+                // This is itself going to be a fairly random occurrence so the security impact should be minimal.
+                token = crypto.pseudoRandomBytes(256)
+            }
+            else
+                token = buf.toString('base64')
+            this_.hashedAuthToken = passwordHash.generate(token)
+            cb(null, token)
+        }
+        catch(err) {
+            cb(err)
+        }
+    })
+}
+//userAccountSchema.methods.setAuthToken = function(cleartext) {
+//    this.hashedAuthToken = passwordHash.generate(cleartext)
+//}
 //userAccountSchema.virtual('password').
 
 var UserAccount = mongoose.model('UserAccount', userAccountSchema)
@@ -193,10 +221,10 @@ app.use(routeErrHandler(function logger(req, res, next) {
 }))
 app.use(app.router) // Must be after session management
 app.use(express.static(__dirname + '/static'))
-app.use(routeErrHandler(function errorHandler(err, req, res, next) {
-    res.status(500)
-    res.render('500.jade', {error: err, showStack: settings.debug})
-}))
+//app.use(routeErrHandler(function errorHandler(err, req, res, next) {
+//    res.status(500)
+//    res.render('500.jade', {error: err, showStack: settings.debug})
+//}))
 app.use(routeErrHandler(function(req, res, next) {
     res.status(404)
     res.render('404.jade', {})
@@ -245,7 +273,7 @@ app.post('/login', routeErrHandler(function(req, res) {
     log_form.handle(req, {
         success: function(form) {
             callAndErrHandle(res, function() {
-                UserAccount.findOne({ name: form.data.username }, function(err, account) {
+                UserAccount.findOne({ name: form.data.username.trim() }, function(err, account) {
                     if(err)
                         render500(err, res)
                     else if(account && account.isPassword(form.data.password)) {
@@ -279,7 +307,7 @@ app.post('/', routeErrHandler(function(req, res) {
             // form.data contains the submitted data
 
             callAndErrHandle(res, function() {
-                UserAccount.find({ name: form.data.username }, function(err, accounts) {
+                UserAccount.find({name: form.data.username.trim()}, function(err, accounts) {
                     if(err)
                         render500(err, res)
                     else if(accounts.length) {
@@ -288,7 +316,7 @@ app.post('/', routeErrHandler(function(req, res) {
                     }
                     else {
                         var account = UserAccount({
-                            name: form.data.username,
+                            name: form.data.username.trim(),
                             email: form.data.email
                         })
                         account.setPassword(form.data.password)
@@ -317,12 +345,31 @@ app.post('/', routeErrHandler(function(req, res) {
     })
 }))
 app.get('/chat', loginRequired, routeErrHandler(function(req, res) {
-    res.render('chat.jade', {account:req.session.account, messages:extractMessages(req)})
+    UserAccount.findOne({name: req.session.account.name}, function(err, account) {
+        if(err)
+            render500(err, res)
+        else
+            account.genAuthToken(function(err, token) {
+                if(err)
+                    render500(err, res)
+                else
+                    account.save(function(err) {
+                        if(err)
+                            render500(err, res)
+                        else
+                            res.render('chat.jade', {
+                                account:req.session.account,
+                                messages:extractMessages(req),
+                                token:token
+                            })
+                    })
+            })
+    })
 }))
 
 /* *** browserify and entry points *** */
 browserify()
-    .add('./browserjs/uses_foo.js')
+    .add('./browserjs/client.js')
     .bundle({debug: settings.debug})
 
     .pipe(minifyify(function(err, src, map) {
@@ -337,24 +384,36 @@ browserify()
 
         var something = app.listen(settings.port)
 
+        var clients = []
         var sock = shoe(function(stream) {
-            var connection
+            var client
 
             var d = dnode({
-                connect: showStackTrace(function(_onSysMsg, _onChat) {
-                    connection = {
-                        onChat: _onChat,
-                        onSysMsg: _onSysMsg
-                    }
-                    connection.onSysMsg('you Are logged in')
+                connect: showStackTrace(function(name, token, api, next) {
+                    UserAccount.findOne({name: name}, function(err, account) {
+                        if(err)
+                            console.error(err)
+                        else if(!account || !account.isAuthToken(token))
+                            next('Authentication failed.')
+                        else {
+                            client = {
+                                name: name,
+                                api: api
+                            }
+                            clients.forEach(function(other) { other.api.onConnect(client.name) })
+                            clients.push(client)
+                            client.api.onSysMsg('you Are logged in')
+                            next()
+                        }
+                    })
                 }),
                 say: showStackTrace(function(message) {
-                    if(!connection) {
+                    if(!client) {
                         console.error('Tried to use say() without connect()')
                         stream.close()
                         return
                     }
-                    connection.onChat('???', message)
+                    clients.forEach(function(other) { other.api.onChat(client.name, message) })
                 })
             })//, {weak:false})
             d.on('error', function(err) {

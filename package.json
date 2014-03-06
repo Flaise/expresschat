@@ -13,7 +13,7 @@
         "passport": "0.2.0",
         "connect-mongo": "0.4.0",
         "shoe": "0.0.15",
-        "dnode": "1.2.0",
+        "dnode": "git+https://github.com/Flaise/dnode.git",
         "jquery": "2.1.0",
         "minifyify": "2.1.0"
     },
