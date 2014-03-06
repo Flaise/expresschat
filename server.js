@@ -21,7 +21,7 @@ var crypto = require('crypto')
 var settings = require('./default_settings.js')
 var app = express()
 
-/* *** Uncaught Exception Handling *** */
+/* *** Error Handling *** */
 function render500(err, res) {
     try {
         console.error(err.stack)
@@ -31,6 +31,11 @@ function render500(err, res) {
     catch(fail) {
         console.error('Unable to render 500 page.')
         console.error(fail.stack)
+    }
+}
+function render500res(res) {
+    return function(err) {
+        render500(err, res)
     }
 }
 
@@ -63,6 +68,25 @@ function showStackTrace(target) {
             target.apply(null, args)
         })
     }
+}
+
+/*
+ * Calls handler with the first argument if that argument indicates there was an error, otherwise calls the target
+ * function with the rest of the arguments.
+ */
+function catchContErr(handler, target) {
+    return function(err) {
+        if(err)
+            handler(err)
+        else
+            target.apply(null, Array.prototype.splice.call(arguments, 1))
+    }
+}
+function consoleShowErr(err) {
+    if(err)
+        console.error(err.stack || err)
+    else
+        console.error('Undefined/null error')
 }
 
 /*
@@ -139,10 +163,10 @@ var log_form = forms.create({
 
 /* *** Schemata *** */
 var userAccountSchema = mongoose.Schema({
-    name: String,
+    name: {type:String, required:true},
     hashedPassword: String,
     email: String,
-    joinDate: { type: Date, default: Date.now },
+    joinDate: {type:Date, default:Date.now, required:true},
     hashedAuthToken: String
 })
 userAccountSchema.methods.isPassword = function(password) {
@@ -155,30 +179,18 @@ userAccountSchema.methods.isAuthToken = function(token) {
     return passwordHash.verify(token, this.hashedAuthToken)
 }
 userAccountSchema.methods.genAuthToken = function(cb) {
-    var this_ = this
-    crypto.randomBytes(256, function(err, buf) {
-        try {
-            var token
-            if(err) {
-                console.warn(err.stack)
-                // If the entropy buffer isn't full, just generate some data anyway.
-                // This is itself going to be a fairly random occurrence so the security impact should be minimal.
-                token = crypto.pseudoRandomBytes(256)
-            }
-            else
-                token = buf.toString('base64')
-            this_.hashedAuthToken = passwordHash.generate(token)
-            cb(null, token)
-        }
-        catch(err) {
-            cb(err)
-        }
-    })
+    try {
+        var token = crypto.randomBytes(256).toString('base64')
+    }
+    catch(err) {
+        console.warn(err.stack || err)
+        // If the entropy buffer isn't full, just generate some data anyway.
+        // This is itself going to be a fairly random occurrence so the security impact should be minimal.
+        token = crypto.pseudoRandomBytes(256).toString('base64')
+    }
+    this.hashedAuthToken = passwordHash.generate(token)
+    cb(null, token)
 }
-//userAccountSchema.methods.setAuthToken = function(cleartext) {
-//    this.hashedAuthToken = passwordHash.generate(cleartext)
-//}
-//userAccountSchema.virtual('password').
 
 var UserAccount = mongoose.model('UserAccount', userAccountSchema)
 
@@ -200,7 +212,6 @@ db.on('error', function(err) {
     console.error(err.message)
     console.error(err.stack)
 })
-//db.once('open', function() {
 
 
 //app.use(passport.initialize())
@@ -273,20 +284,21 @@ app.post('/login', routeErrHandler(function(req, res) {
     log_form.handle(req, {
         success: function(form) {
             callAndErrHandle(res, function() {
-                UserAccount.findOne({ name: form.data.username.trim() }, function(err, account) {
-                    if(err)
-                        render500(err, res)
-                    else if(account && account.isPassword(form.data.password)) {
-                        req.session.account = account
-                        res.redirect('/chat')
-                    }
-                    else {
-                        //req.flash('error', 'Invalid username/password combination.')
+                UserAccount.findOne(
+                    { name: form.data.username.trim() },
+                    catchContErr(render500res(res), function(account) {
+                        if(account && account.isPassword(form.data.password)) {
+                            req.session.account = account
+                            res.redirect('/chat')
+                        }
+                        else {
+                            //req.flash('error', 'Invalid username/password combination.')
 
-                        form.fields.password.error = 'Invalid username/password combination.'
-                        res.render('login.jade', {log_form:form, messages:extractMessages(req)})
-                    }
-                })
+                            form.fields.password.error = 'Invalid username/password combination.'
+                            res.render('login.jade', {log_form:form, messages:extractMessages(req)})
+}
+                    })
+                )
             })
         },
         error: function(form) {
@@ -307,10 +319,8 @@ app.post('/', routeErrHandler(function(req, res) {
             // form.data contains the submitted data
 
             callAndErrHandle(res, function() {
-                UserAccount.find({name: form.data.username.trim()}, function(err, accounts) {
-                    if(err)
-                        render500(err, res)
-                    else if(accounts.length) {
+                UserAccount.find({name: form.data.username.trim()}, catchContErr(render500res(res), function(accounts) {
+                    if(accounts.length) {
                         form.fields.username.error = 'That name is already taken.'
                         res.render('index.jade', {reg_form:form, messages:extractMessages(req)})
                     }
@@ -320,16 +330,12 @@ app.post('/', routeErrHandler(function(req, res) {
                             email: form.data.email
                         })
                         account.setPassword(form.data.password)
-                        account.save(function(err) {
-                            if(err)
-                                render500(err, res)
-                            else {
-                                req.session.account = account
-                                res.redirect('/chat')
-                            }
-                        })
+                        account.save(catchContErr(render500res(res), function() {
+                            req.session.account = account
+                            res.redirect('/chat')
+                        }))
                     }
-                })
+                }))
             })
 
         },
@@ -345,26 +351,17 @@ app.post('/', routeErrHandler(function(req, res) {
     })
 }))
 app.get('/chat', loginRequired, routeErrHandler(function(req, res) {
-    UserAccount.findOne({name: req.session.account.name}, function(err, account) {
-        if(err)
-            render500(err, res)
-        else
-            account.genAuthToken(function(err, token) {
-                if(err)
-                    render500(err, res)
-                else
-                    account.save(function(err) {
-                        if(err)
-                            render500(err, res)
-                        else
-                            res.render('chat.jade', {
-                                account:req.session.account,
-                                messages:extractMessages(req),
-                                token:token
-                            })
-                    })
-            })
-    })
+    UserAccount.findOne({name: req.session.account.name}, catchContErr(render500res(res), function(account) {
+        account.genAuthToken(catchContErr(render500res(res), function(token) {
+            account.save(catchContErr(render500res(res), function() {
+                res.render('chat.jade', {
+                    account:req.session.account,
+                    messages:extractMessages(req),
+                    token:token
+                })
+            }))
+        }))
+    }))
 }))
 
 /* *** browserify and entry points *** */
@@ -372,17 +369,9 @@ browserify()
     .add('./browserjs/client.js')
     .bundle({debug: settings.debug})
 
-    .pipe(minifyify(function(err, src, map) {
-        if(err) {
-            console.error(err)
-            return
-        }
+    .pipe(minifyify(catchContErr(consoleShowErr, function(src, map) {
         fs.writeFileSync('./static/bundle.js', src)
         fs.writeFileSync('./static/bundle.map.json', map)
-
-        // application starts
-
-        var something = app.listen(settings.port)
 
         var clients = []
         var sock = shoe(function(stream) {
@@ -390,22 +379,18 @@ browserify()
 
             var d = dnode({
                 connect: showStackTrace(function(name, token, api, next) {
-                    UserAccount.findOne({name: name}, function(err, account) {
-                        if(err)
-                            console.error(err)
-                        else if(!account || !account.isAuthToken(token))
+                    UserAccount.findOne({name: name}, catchContErr(consoleShowErr, function(account) {
+                        if(!account || !account.isAuthToken(token))
                             next('Authentication failed.')
                         else {
-                            client = {
-                                name: name,
-                                api: api
-                            }
-                            clients.forEach(function(other) { other.api.onConnect(client.name) })
+                            client = api
+                            client.name = name
+                            clients.forEach(function(other) { other.onConnect(client.name) })
+                            client.onSysMsg('you Are logged in')
+                            next(null, clients.map(function(client) { return client.name }))
                             clients.push(client)
-                            client.api.onSysMsg('you Are logged in')
-                            next()
                         }
-                    })
+                    }))
                 }),
                 say: showStackTrace(function(message) {
                     if(!client) {
@@ -413,15 +398,28 @@ browserify()
                         stream.close()
                         return
                     }
-                    clients.forEach(function(other) { other.api.onChat(client.name, message) })
+                    clients.forEach(function(other) { other.onChat(client.name, message) })
                 })
             })//, {weak:false})
-            d.on('error', function(err) {
-                console.error(err.stack)
-            })
+            d.on('error', consoleShowErr)
             d.pipe(stream).pipe(d)
+
+            stream.on('close', function() {
+                var i = clients.indexOf(client)
+
+                if(i < 0)
+                    console.error('Client "' + client.name + '" not found in client list.')
+                else {
+                    clients.splice(i, 1)
+                    clients.forEach(function(other) { other.onDisconnect(client.name) })
+                }
+            })
         })
+
+        // application starts
+
+        var something = app.listen(settings.port)
         sock.install(something, '/dnode')
 
         console.log('Started.')
-    }))
+    })))

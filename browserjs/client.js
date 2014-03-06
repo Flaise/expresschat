@@ -24,15 +24,21 @@ $(function() {
         },
         onConnect: function(name) {
             api.onSysMsg('<strong>' + name + '</strong> has connected.')
+        },
+        onDisconnect: function(name) {
+            api.onSysMsg('<strong>' + name + '</strong> has disconnected.')
         }
     }
 
     var d = dnode()
     d.on('remote', function(remote) {
-        remote.connect(g_name, g_token, api, function(err) {
+        remote.connect(g_name, g_token, api, function(err, otherClients) {
             if(err)
                 console.error(err)
-            else
+            else {
+                otherClients.forEach(function(other) {
+                    api.onSysMsg('<strong>' + other + '</strong> is already connected.')
+                })
                 $('.chatinput')
                     .bind("enter", function(e) {
                         var $input = $('.chatinput')
@@ -44,6 +50,7 @@ $(function() {
                             $(this).trigger("enter")
                         }
                     })
+            }
         })
     })
     d.on('error', function(err) {
