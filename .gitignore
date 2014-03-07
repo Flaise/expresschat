@@ -3,3 +3,4 @@ node_modules/
 *.komodoproject
 static/bundle.js
 static/bundle.map.json
+settings.js

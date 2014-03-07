@@ -9,6 +9,7 @@ body {
     border: 3px inset #3b7d96;
     background-color: #eeeeee;
     padding: .2em;
+    overflow-y: auto;
 }
 .chatentry {
     display: table-row;
@@ -20,7 +21,6 @@ body {
     padding-left: .5em;
 }
 .chatname {
-    /*display: table-cell; */
     padding-right: .5em;
     border-right: 2px solid black;
     font-weight:bold;

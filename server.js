@@ -16,10 +16,27 @@ var shoe = require('shoe')
 var dnode = require('dnode')
 var minifyify = require('minifyify')
 var crypto = require('crypto')
+var http = require('http')
+var https = require('https')
 
+var default_settings = require('./default_settings.js')
+var settings = {}
+try {
+    settings = require('./settings.js')
+}
+catch(err) {
+    if(err.code !== 'MODULE_NOT_FOUND')
+        throw err
+}
+settings.__proto__ = default_settings
 
-var settings = require('./default_settings.js')
 var app = express()
+
+
+var httpServer = http.createServer(app)
+//var httpsServer = https.createServer({key: settings.sslPrivateKey, cert: settings.sslCertificate}, app)
+
+
 
 /* *** Error Handling *** */
 function render500(err, res) {
@@ -418,7 +435,11 @@ browserify()
 
         // application starts
 
-        var something = app.listen(settings.port)
+        //var something = app.listen(settings.port)
+
+        var something = httpServer.listen(settings.port)
+        //httpsServer.listen(443)
+
         sock.install(something, '/dnode')
 
         console.log('Started.')

@@ -2,7 +2,7 @@ var $ = require('jquery')
 var shoe = require('shoe')
 var dnode = require('dnode')
 
-$(function() {
+;(function() {
     "use strict";
 
     var api = {
@@ -15,12 +15,17 @@ $(function() {
             )
         },
         onChat: function(name, message) {
-            $('.chatbox').append(
+            var $chatbox = $('.chatbox')
+            var scrollBottom = $chatbox.scrollTop() + $chatbox.innerHeight()
+            var atBottom = scrollBottom === $chatbox[0].scrollHeight
+            $chatbox.append(
                 '<div class="chatentry">'
                     + '<div class="chatname">' + name + '</div>'
                     + '<div class="chatmessage">' + message + '</div>'
                 + '</div>'
             )
+            if(atBottom)
+                $chatbox.scrollTop($chatbox[0].scrollHeight)
         },
         onConnect: function(name) {
             api.onSysMsg('<strong>' + name + '</strong> has connected.')
@@ -62,4 +67,4 @@ $(function() {
 
     var stream = shoe('/dnode')
     d.pipe(stream).pipe(d)
-})
+})()
