@@ -4,3 +4,5 @@ node_modules/
 static/bundle.js
 static/bundle.map.json
 settings.js
+ssl.crt
+ssl.private.key

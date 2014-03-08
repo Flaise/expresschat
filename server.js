@@ -34,7 +34,10 @@ var app = express()
 
 
 var httpServer = http.createServer(app)
-//var httpsServer = https.createServer({key: settings.sslPrivateKey, cert: settings.sslCertificate}, app)
+var httpsServer = https.createServer({
+    key: fs.readFileSync(settings.sslPrivateKeyFile).toString(),
+    cert: fs.readFileSync(settings.sslCertificateFile).toString()
+}, app)
 
 
 
@@ -244,7 +247,7 @@ app.use(flash())
 ));*/
 
 app.use(routeErrHandler(function logger(req, res, next) {
-    console.log('%s %s %s', req.method, req.url, req.ip)
+    console.log('[%s] %s %s %s', new Date(), req.method, req.url, req.ip)
     next()
 }))
 app.use(app.router) // Must be after session management
@@ -415,6 +418,7 @@ browserify()
                         stream.close()
                         return
                     }
+                    message = message.split('<').join('&lt;').split('>').join('&gt;')
                     clients.forEach(function(other) { other.onChat(client.name, message) })
                 })
             })//, {weak:false})
@@ -435,12 +439,12 @@ browserify()
 
         // application starts
 
-        //var something = app.listen(settings.port)
+        //var server = app.listen(settings.port)
 
-        var something = httpServer.listen(settings.port)
-        //httpsServer.listen(443)
+        httpServer.listen(settings.port)
+        httpsServer.listen(settings.sslPort)
 
-        sock.install(something, '/dnode')
+        sock.install(httpsServer, '/dnode')
 
         console.log('Started.')
     })))

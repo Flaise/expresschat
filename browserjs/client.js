@@ -5,9 +5,25 @@ var dnode = require('dnode')
 ;(function() {
     "use strict";
 
+    function scrolledToBottom() {
+        var $chatbox = $('.chatbox')
+        var scrollBottom = $chatbox.scrollTop() + $chatbox.innerHeight()
+        return scrollBottom === $chatbox[0].scrollHeight
+    }
+    function scrollToBottom() {
+        var $chatbox = $('.chatbox')
+        $chatbox.scrollTop($chatbox[0].scrollHeight)
+    }
+    function append(markup) {
+        var atBottom = scrolledToBottom()
+        $('.chatbox').append(markup)
+        if(atBottom)
+            scrollToBottom()
+    }
+
     var api = {
         onSysMsg: function(message) {
-            $('.chatbox').append(
+            append(
                 '<div class="chatentry">'
                     + '<div class="chatname system">system</div>'
                     + '<div class="chatmessage">' + message + '</div>'
@@ -15,17 +31,12 @@ var dnode = require('dnode')
             )
         },
         onChat: function(name, message) {
-            var $chatbox = $('.chatbox')
-            var scrollBottom = $chatbox.scrollTop() + $chatbox.innerHeight()
-            var atBottom = scrollBottom === $chatbox[0].scrollHeight
-            $chatbox.append(
+            append(
                 '<div class="chatentry">'
                     + '<div class="chatname">' + name + '</div>'
                     + '<div class="chatmessage">' + message + '</div>'
                 + '</div>'
             )
-            if(atBottom)
-                $chatbox.scrollTop($chatbox[0].scrollHeight)
         },
         onConnect: function(name) {
             api.onSysMsg('<strong>' + name + '</strong> has connected.')
