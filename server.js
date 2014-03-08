@@ -136,11 +136,11 @@ var validator_matchField = function (match_field, message) {
     return function (form, field, callback) {
         if (form.fields[match_field].data !== field.data) {
             if(message.lastIndexOf('%') >= 0)
-                callback(util.format(message, match_field))
+                callback(util.format(message, match_field));
             else
-                callback(message)
+                callback(message);
         } else {
-            callback()
+            callback();
         }
     }
 }
@@ -153,16 +153,34 @@ var reg_form = forms.create({
     username: fields.string({
         label: 'Username',
         required: true,
-        validators: [validator_alphanumeric()]
+        validators: [
+            validator_alphanumeric(),
+            validators.minlength(3, 'Pick a name at least 3 characters long.'),
+            validators.maxlength(10, 'Pick a name at most %s characters long.')
+        ],
+        attrs: {
+            classes: ['asdf'],
+            maxlength: 10
+        }
     }),
     password: fields.password({
         label: 'Password',
-        required: true
+        required: true,
+        validators: [
+            validators.minlength(5, 'Your password must be %s characters long, preferably longer.'),
+            validators.maxlength(300, 'Pick a memorable password no longer than 300 characters.')
+        ],
+        attrs: {
+            maxlength: 300
+        }
     }),
     password2: fields.password({
         label: 'Confirm Password',
         required: true,
-        validators: [validator_matchField('password', "Passwords didn't match. Try again.")]
+        validators: [validator_matchField('password', "Passwords didn't match. Try again.")],
+        attrs: {
+            maxlength: 300
+        }
     }),
     email: fields.email({
         label: 'Email'
@@ -172,11 +190,17 @@ var reg_form = forms.create({
 var log_form = forms.create({
     username: fields.string({
         label: 'Username',
-        required: true
+        required: true,
+        attrs: {
+            maxlength: 300
+        }
     }),
     password: fields.password({
         label: 'Password',
-        required: true
+        required: true,
+        attrs: {
+            maxlength: 300
+        }
     })
 })
 
@@ -316,7 +340,7 @@ app.post('/login', routeErrHandler(function(req, res) {
 
                             form.fields.password.error = 'Invalid username/password combination.'
                             res.render('login.jade', {log_form:form, messages:extractMessages(req)})
-}
+                        }
                     })
                 )
             })
