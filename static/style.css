@@ -1,6 +1,6 @@
 body {
     font-family: verdana, sans-serif;
-    background-color: #fafafa;
+    background-color: #fcfcfc;
     font-size: .8em;
 }
 
@@ -19,6 +19,8 @@ body {
 .chatmessage {
     display: table-cell;
     padding-left: .5em;
+    word-wrap: break-word;
+    word-break: break-all;
 }
 .chatname {
     padding-right: .5em;
@@ -68,7 +70,7 @@ body {
 .normalform .io {
     /* contains input and the error message */
     display: table-cell;
-    padding-bottom: .75em;
+    padding-bottom: 1em;
 }
 .normalform .error {
     color: #ea0806;

@@ -77,7 +77,7 @@ function routeErrHandler(target) {
 }
 
 function showStackTrace(target) {
-    return function() {
+    return function(__varargs__) {
         var d = domain.create()
         d.on('error', function(err) {
             console.error(err.stack)
@@ -95,7 +95,7 @@ function showStackTrace(target) {
  * function with the rest of the arguments.
  */
 function catchContErr(handler, target) {
-    return function(err) {
+    return function(err, __varargs__) {
         if(err)
             handler(err)
         else
@@ -131,44 +131,25 @@ function callAndErrHandle(res, target) {
 
 /* *** Forms *** */
 
-var validator_matchField = function (match_field, message) {
-    if (!message) { message = 'Does not match %s.'; }
-    return function (form, field, callback) {
-        if (form.fields[match_field].data !== field.data) {
-            if(message.lastIndexOf('%') >= 0)
-                callback(util.format(message, match_field));
-            else
-                callback(message);
-        } else {
-            callback();
-        }
-    }
-}
-
-var validator_alphanumeric = function(message) {
-    return validators.regexp(/^[a-zA-Z0-9]*$/, message || 'Letters and numbers only.');
-}
-
 var reg_form = forms.create({
     username: fields.string({
         label: 'Username',
         required: true,
         validators: [
-            validator_alphanumeric(),
-            validators.minlength(3, 'Pick a name at least 3 characters long.'),
-            validators.maxlength(10, 'Pick a name at most %s characters long.')
+            validators.alphanumeric(),
+            validators.maxlength(20, 'Pick a name at most %s characters long.')
         ],
         attrs: {
             classes: ['asdf'],
-            maxlength: 10
+            maxlength: 20
         }
     }),
     password: fields.password({
         label: 'Password',
         required: true,
         validators: [
-            validators.minlength(5, 'Your password must be %s characters long, preferably longer.'),
-            validators.maxlength(300, 'Pick a memorable password no longer than 300 characters.')
+            validators.minlength(5, 'Your password must be at least %s characters long, preferably longer.'),
+            validators.maxlength(300)
         ],
         attrs: {
             maxlength: 300
@@ -177,7 +158,9 @@ var reg_form = forms.create({
     password2: fields.password({
         label: 'Confirm Password',
         required: true,
-        validators: [validator_matchField('password', "Passwords didn't match. Try again.")],
+        validators: [
+            validators.matchField('password', "Passwords didn't match. Try again.")
+        ],
         attrs: {
             maxlength: 300
         }

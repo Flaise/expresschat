@@ -19,7 +19,7 @@ div
         .chatname
         .chatmessage
             | Using your javascripts to log you in. Please wait while you are logged in.
-input.chatinput(type='text' placeholder='Click here and type stuff and press enter to send so you can send stuff')
+input.chatinput(type='text' maxlength='500' placeholder='Click here and type stuff and press enter to send so you can send stuff')
 
 script
     != 'var g_name="' + account.name + '";'
